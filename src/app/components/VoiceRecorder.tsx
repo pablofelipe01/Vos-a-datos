@@ -225,7 +225,7 @@ export default function VoiceRecorder() {
         blobSize: audioBlob.size
       });
 
-      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook-test/8cb8a54e-bcb3-459b-bbaa-99725ee45be4', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/8cb8a54e-bcb3-459b-bbaa-99725ee45be4', {
         method: 'POST',
         headers: {
           'X-Operator-Name': number
