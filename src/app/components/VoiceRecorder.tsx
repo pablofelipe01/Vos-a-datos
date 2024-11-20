@@ -164,19 +164,28 @@ export default function VoiceRecorder() {
 
     setIsSending(true);
 
-    const formData = new FormData();
-    formData.append('number', number);
-    if (audioBlob) {
-      formData.append('audio', audioBlob, 'recording.ogg'); // Ensure the extension matches the MIME type
-    }
-
     try {
+      // Crear FormData y agregar los datos
+      const formData = new FormData();
+      formData.append('data', audioBlob, `recording_${number}.ogg`);
+
+      // Log para debug
+      console.log('Sending data with number:', number);
+      for (let pair of formData.entries()) {
+        console.log('FormData entry:', pair[0], pair[1]);
+      }
+
+      // Realizar la petición con headers personalizados
       const response = await fetch('https://tok-n8n-sol.onrender.com/webhook-test/8cb8a54e-bcb3-459b-bbaa-99725ee45be4', {
         method: 'POST',
+        headers: {
+          'X-Operator-Name': number
+        },
         body: formData,
       });
 
       const responseText = await response.text();
+      console.log('Server response:', responseText);
 
       if (response.ok) {
         confetti({
@@ -187,15 +196,18 @@ export default function VoiceRecorder() {
         alert('¡Datos enviados exitosamente!');
         setAudioBlob(null);
         setNumber('');
-        if (audioPreviewRef.current) audioPreviewRef.current.style.display = 'none';
+        if (audioPreviewRef.current) {
+          audioPreviewRef.current.style.display = 'none';
+        }
       } else {
         throw new Error(`El servidor respondió con estado: ${response.status}. Respuesta: ${responseText}`);
       }
     } catch (error: unknown) {
+      console.error('Error details:', error);
       if (error instanceof Error) {
         alert(`Error al enviar datos. Por favor, intenta de nuevo. Error: ${error.message}`);
       } else {
-        alert('Error al enviar datos. Por favor, intenta de nuevo.');
+        alert('Error desconocido al enviar datos. Por favor, intenta de nuevo.');
       }
     } finally {
       setIsSending(false);
