@@ -7,7 +7,7 @@ export default function VoiceRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [number, setNumber] = useState('');
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<unknown>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [dataArray, setDataArray] = useState<Uint8Array | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -17,6 +17,51 @@ export default function VoiceRecorder() {
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const waveBars = useRef<HTMLDivElement[]>([]);
   const timerRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // Cleanup function
+  const cleanup = () => {
+    if (mediaRecorder) {
+      try {
+        if (mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stopRecording();
+        }
+      } catch (e) {
+        console.error('Error stopping recorder:', e);
+      }
+    }
+
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      } catch (e) {
+        console.error('Error stopping tracks:', e);
+      }
+      streamRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      try {
+        audioContextRef.current.close();
+      } catch (e) {
+        console.error('Error closing audio context:', e);
+      }
+      audioContextRef.current = null;
+    }
+
+    setIsRecording(false);
+    setIsCountdownActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      cleanup();
+      if (audioBlob) {
+        URL.revokeObjectURL(URL.createObjectURL(audioBlob));
+      }
+    };
+  }, [audioBlob]);
 
   useEffect(() => {
     if (isCountdownActive && timerRef.current === null) {
@@ -51,6 +96,7 @@ export default function VoiceRecorder() {
     if (!isRecording) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
         setCountdown(60);
         setIsCountdownActive(false);
         startRecording(stream);
@@ -79,19 +125,28 @@ export default function VoiceRecorder() {
   const startRecording = async (stream: MediaStream) => {
     setIsRecording(true);
 
-    let mimeType = 'audio/webm';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'audio/mp4';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = '';
-      }
-    }
-
     try {
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const { default: RecordRTC } = await import('recordrtc');
+
+      const recorder = new RecordRTC(stream, {
+        type: 'audio',
+        mimeType: 'audio/webm;codecs=opus',
+        recorderType: RecordRTC.StereoAudioRecorder,
+        numberOfAudioChannels: 1,
+        desiredSampRate: 16000,
+        timeSlice: 1000,
+        ondataavailable: (blob: Blob) => {
+          console.log('Data available:', blob.size);
+        },
+      });
+
+      recorder.startRecording();
       setMediaRecorder(recorder);
 
+      const AudioContext = window.AudioContext || (window as unknown).webkitAudioContext;
       const context = new AudioContext();
+      audioContextRef.current = context;
+
       if (context.state === 'suspended') {
         await context.resume();
       }
@@ -105,34 +160,30 @@ export default function VoiceRecorder() {
       setDataArray(dataArray);
       setAnalyser(analyserNode);
 
-      const chunks: BlobPart[] = [];
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: recorder.mimeType });
-        setAudioBlob(blob);
-        if (audioPreviewRef.current) {
-          audioPreviewRef.current.src = URL.createObjectURL(blob);
-          audioPreviewRef.current.style.display = 'block';
-        }
-      };
-      recorder.start();
     } catch (err) {
-      console.error('Error initializing MediaRecorder:', err);
+      console.error('Error initializing recorder:', err);
       alert('Error al iniciar la grabación. Por favor, intenta con otro navegador o dispositivo.');
       setIsRecording(false);
+      cleanup();
     }
   };
 
   const stopRecording = () => {
     setIsRecording(false);
     setIsCountdownActive(false);
+    
     if (mediaRecorder) {
-      mediaRecorder.stop();
-      mediaRecorder.stream.getTracks().forEach((track) => track.stop());
-    }
-    if (timerRef.current !== null) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
+      mediaRecorder.stopRecording(() => {
+        const blob = mediaRecorder.getBlob();
+        if (blob instanceof Blob && blob.size > 0) {
+          setAudioBlob(blob);
+          if (audioPreviewRef.current) {
+            audioPreviewRef.current.src = URL.createObjectURL(blob);
+            audioPreviewRef.current.style.display = 'block';
+          }
+        }
+        cleanup();
+      });
     }
   };
 
@@ -165,17 +216,15 @@ export default function VoiceRecorder() {
     setIsSending(true);
 
     try {
-      // Crear FormData y agregar los datos
       const formData = new FormData();
-      formData.append('data', audioBlob, `recording_${number}.ogg`);
+      formData.append('data', audioBlob, `recording_${number}.webm`);
 
-      // Log para debug
-      console.log('Sending data with number:', number);
-      for (const pair of formData.entries()) {
-        console.log('FormData entry:', pair[0], pair[1]);
-      }
+      console.log('Sending data:', {
+        operator: number,
+        blobType: audioBlob.type,
+        blobSize: audioBlob.size
+      });
 
-      // Realizar la petición con headers personalizados
       const response = await fetch('https://tok-n8n-sol.onrender.com/webhook-test/8cb8a54e-bcb3-459b-bbaa-99725ee45be4', {
         method: 'POST',
         headers: {
@@ -205,9 +254,9 @@ export default function VoiceRecorder() {
     } catch (error: unknown) {
       console.error('Error details:', error);
       if (error instanceof Error) {
-        alert(`Error al enviar datos. Por favor, intenta de nuevo. Error: ${error.message}`);
+        alert(`Error al enviar datos: ${error.message}`);
       } else {
-        alert('Error desconocido al enviar datos. Por favor, intenta de nuevo.');
+        alert('Error desconocido al enviar datos');
       }
     } finally {
       setIsSending(false);
