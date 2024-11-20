@@ -16,9 +16,8 @@ export default function VoiceRecorder() {
 
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const waveBars = useRef<HTMLDivElement[]>([]);
-  const timerRef = useRef<number | null>(null); // Usamos useRef para el intervalo
+  const timerRef = useRef<number | null>(null);
 
-  // Efecto para manejar el cronómetro
   useEffect(() => {
     if (isCountdownActive && timerRef.current === null) {
       timerRef.current = window.setInterval(() => {
@@ -26,7 +25,7 @@ export default function VoiceRecorder() {
           if (prevCountdown > 1) {
             return prevCountdown - 1;
           } else {
-            stopRecording(); // Detener la grabación cuando el cronómetro llegue a 0
+            stopRecording();
             setIsCountdownActive(false);
             return 0;
           }
@@ -40,7 +39,7 @@ export default function VoiceRecorder() {
         timerRef.current = null;
       }
     };
-  }, [isCountdownActive]); // Solo depende de isCountdownActive
+  }, [isCountdownActive]);
 
   useEffect(() => {
     if (isRecording && analyser && dataArray) {
@@ -52,54 +51,85 @@ export default function VoiceRecorder() {
     if (!isRecording) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setCountdown(60); // Reiniciar el cronómetro al iniciar una nueva grabación
-        setIsCountdownActive(false); // Asegurarse de que el cronómetro no esté activo
+        setCountdown(60);
+        setIsCountdownActive(false);
         startRecording(stream);
       } catch (err: unknown) {
         console.error('Error accessing microphone:', err);
-        alert('Error al acceder al micrófono. Por favor, asegúrate de haber concedido permisos.');
+        if (err instanceof DOMException) {
+          switch (err.name) {
+            case 'NotAllowedError':
+              alert('Permiso denegado para acceder al micrófono. Por favor, habilita el acceso en la configuración de tu dispositivo.');
+              break;
+            case 'NotFoundError':
+              alert('No se encontró ningún dispositivo de audio. Por favor, conecta un micrófono.');
+              break;
+            default:
+              alert('Error al acceder al micrófono. Por favor, intenta de nuevo.');
+          }
+        } else {
+          alert('Error desconocido al acceder al micrófono.');
+        }
       }
     } else {
       stopRecording();
     }
   };
 
-  const startRecording = (stream: MediaStream) => {
+  const startRecording = async (stream: MediaStream) => {
     setIsRecording(true);
-    const recorder = new MediaRecorder(stream);
-    setMediaRecorder(recorder);
 
-    const context = new AudioContext();
-    const analyserNode = context.createAnalyser();
-    const source = context.createMediaStreamSource(stream);
-    source.connect(analyserNode);
-    analyserNode.fftSize = 256;
-    const bufferLength = analyserNode.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    setDataArray(dataArray);
-    setAnalyser(analyserNode);
-
-    const chunks: BlobPart[] = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-      setAudioBlob(blob);
-      if (audioPreviewRef.current) {
-        audioPreviewRef.current.src = URL.createObjectURL(blob);
-        audioPreviewRef.current.style.display = 'block';
+    let mimeType = 'audio/webm';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = '';
       }
-    };
-    recorder.start();
+    }
+
+    try {
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+
+      const context = new AudioContext();
+      if (context.state === 'suspended') {
+        await context.resume();
+      }
+
+      const analyserNode = context.createAnalyser();
+      const source = context.createMediaStreamSource(stream);
+      source.connect(analyserNode);
+      analyserNode.fftSize = 256;
+      const bufferLength = analyserNode.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      setDataArray(dataArray);
+      setAnalyser(analyserNode);
+
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: recorder.mimeType });
+        setAudioBlob(blob);
+        if (audioPreviewRef.current) {
+          audioPreviewRef.current.src = URL.createObjectURL(blob);
+          audioPreviewRef.current.style.display = 'block';
+        }
+      };
+      recorder.start();
+    } catch (err) {
+      console.error('Error initializing MediaRecorder:', err);
+      alert('Error al iniciar la grabación. Por favor, intenta con otro navegador o dispositivo.');
+      setIsRecording(false);
+    }
   };
 
   const stopRecording = () => {
     setIsRecording(false);
-    setIsCountdownActive(false); // Detener el cronómetro si está activo
+    setIsCountdownActive(false);
     if (mediaRecorder) {
       mediaRecorder.stop();
       mediaRecorder.stream.getTracks().forEach((track) => track.stop());
     }
-    // Limpiar el intervalo
     if (timerRef.current !== null) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -135,9 +165,9 @@ export default function VoiceRecorder() {
     setIsSending(true);
 
     const formData = new FormData();
-    formData.append('number', number); // Agregar número al FormData
+    formData.append('number', number);
     if (audioBlob) {
-      formData.append('audio', audioBlob, 'recording.ogg');
+      formData.append('audio', audioBlob, 'recording.ogg'); // Ensure the extension matches the MIME type
     }
 
     try {
@@ -188,7 +218,7 @@ export default function VoiceRecorder() {
     <div>
       {/* Icono de Inicio para Recargar */}
       <div className="text-center mb-5">
-        <button onClick={reloadPage} className="text-blue-800">
+        <button onClick={reloadPage} className="text-blue-800" aria-label="Recargar Página">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-6 w-6 mx-auto"
@@ -234,7 +264,6 @@ export default function VoiceRecorder() {
         <h1 className="text-2xl font-semibold text-center mb-5 text-blue-800">Instrucciones:</h1>
         <ul className="list-disc list-inside">
           <li>Saludo</li>
-        
           <li>Consumo de gas Inicial</li>
           <li>Hertz</li>
           <li>Peso por Minuto</li>
