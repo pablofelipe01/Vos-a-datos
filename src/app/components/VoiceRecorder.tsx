@@ -171,7 +171,7 @@ export default function VoiceRecorder() {
 
       // Log para debug
       console.log('Sending data with number:', number);
-      for (let pair of formData.entries()) {
+      for (const pair of formData.entries()) {
         console.log('FormData entry:', pair[0], pair[1]);
       }
 
