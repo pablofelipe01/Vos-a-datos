@@ -141,7 +141,7 @@ export default function VoiceRecorder() {
     }
 
     try {
-      const response = await fetch('https://hook.us2.make.com/nip7vj86ndf2vv1t7r6jw6yoky18u4t7', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/8cb8a54e-bcb3-459b-bbaa-99725ee45be4', {
         method: 'POST',
         body: formData,
       });

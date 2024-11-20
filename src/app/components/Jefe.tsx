@@ -98,7 +98,7 @@ export default function Jefe() {
     formData.append('audio', blob, 'recording.ogg');
 
     try {
-      const response = await fetch('https://hook.us2.make.com/ffwfumd5bzppjii1fsma4e746u7xtw9b', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/211c9391-504b-46d1-99cc-98050a15aa50', {
         method: 'POST',
         body: formData,
       });

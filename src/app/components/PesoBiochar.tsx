@@ -9,7 +9,7 @@ export default function ViajeBiomasa() {
     setIsSending(true);
 
     try {
-      const response = await fetch('https://hook.us2.make.com/wxpxhrhg3qgim71xteampkaw2sg4vmaw', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/e699666b-1126-497e-ba45-4a06aafeaf5e', {
         method: 'POST',
       });
 

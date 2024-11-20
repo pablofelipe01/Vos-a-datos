@@ -98,7 +98,7 @@ export default function Observaciones() {
     formData.append('audio', blob, 'recording.ogg');
 
     try {
-      const response = await fetch('https://hook.us2.make.com/ba1c2ibjwzon0moqupj6o8x8r0ryxcuh', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/68d9a87f-5ce8-4daf-8ac7-443dab8ce067', {
         method: 'POST',
         body: formData,
       });
