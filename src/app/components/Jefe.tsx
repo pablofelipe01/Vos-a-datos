@@ -10,9 +10,24 @@ export default function Jefe() {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [dataArray, setDataArray] = useState<Uint8Array | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const waveBars = useRef<HTMLDivElement[]>([]);
+
+  // Initialize AudioContext on component mount
+  useEffect(() => {
+    const AudioContextClass = window.AudioContext || (window as unknown).webkitAudioContext;
+    if (AudioContextClass) {
+      audioContextRef.current = new AudioContextClass();
+    }
+    
+    return () => {
+      if (audioContextRef.current?.state !== 'closed') {
+        audioContextRef.current?.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isRecording && analyser && dataArray) {
@@ -20,14 +35,44 @@ export default function Jefe() {
     }
   }, [isRecording, analyser, dataArray]);
 
+  const initializeAudioContext = async () => {
+    if (audioContextRef.current?.state === 'suspended') {
+      await audioContextRef.current.resume();
+    }
+  };
+
   const toggleRecording = async () => {
     if (!isRecording) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        await initializeAudioContext();
+        
+        // Request microphone access with specific constraints for Safari
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: { ideal: true },
+            noiseSuppression: { ideal: true },
+            autoGainControl: { ideal: true },
+            sampleRate: { ideal: 44100 },
+            channelCount: { ideal: 1 }
+          }
+        });
+        
         startRecording(stream);
       } catch (err) {
         console.error("Error accessing microphone:", err);
-        alert("Error accessing microphone. Please ensure you have granted microphone permissions.");
+        
+        // More detailed error message
+        if (err instanceof DOMException) {
+          if (err.name === 'NotAllowedError') {
+            alert("Microphone access was denied. Please check your browser settings and allow microphone access.");
+          } else if (err.name === 'NotFoundError') {
+            alert("No microphone was found. Please ensure your device has a working microphone.");
+          } else {
+            alert(`Microphone error: ${err.message}`);
+          }
+        } else {
+          alert("Error accessing microphone. Please check your browser settings and try again.");
+        }
       }
     } else {
       stopRecording();
@@ -36,36 +81,57 @@ export default function Jefe() {
 
   const startRecording = (stream: MediaStream) => {
     setIsRecording(true);
-    const recorder = new MediaRecorder(stream);
+    
+    // Check for supported MIME types in Safari
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/mp4';
+
+    const recorder = new MediaRecorder(stream, {
+      mimeType,
+      audioBitsPerSecond: 128000
+    });
     setMediaRecorder(recorder);
 
-    const context = new AudioContext();
-    const analyserNode = context.createAnalyser();
-    const source = context.createMediaStreamSource(stream);
-    source.connect(analyserNode);
-    analyserNode.fftSize = 256;
-    const bufferLength = analyserNode.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    setDataArray(dataArray);
-    setAnalyser(analyserNode);
+    if (audioContextRef.current) {
+      try {
+        const analyserNode = audioContextRef.current.createAnalyser();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        source.connect(analyserNode);
+        analyserNode.fftSize = 256;
+        const bufferLength = analyserNode.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        setDataArray(dataArray);
+        setAnalyser(analyserNode);
+      } catch (err) {
+        console.error("Error setting up audio analysis:", err);
+      }
+    }
 
     const chunks: BlobPart[] = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        chunks.push(e.data);
+      }
+    };
+    
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+      const blob = new Blob(chunks, { type: mimeType });
       setAudioBlob(blob);
       if (audioPreviewRef.current) {
-        audioPreviewRef.current.src = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        audioPreviewRef.current.src = url;
         audioPreviewRef.current.style.display = 'block';
       }
-      sendData(blob); // Automatically send data after stopping recording
+      sendData(blob);
     };
-    recorder.start();
+
+    recorder.start(100);
   };
 
   const stopRecording = () => {
     setIsRecording(false);
-    if (mediaRecorder) {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
       mediaRecorder.stream.getTracks().forEach(track => track.stop());
     }
@@ -76,9 +142,11 @@ export default function Jefe() {
 
     analyser.getByteFrequencyData(dataArray);
     waveBars.current.forEach((bar, i) => {
-      const value = dataArray[i * 2];
-      const percent = value / 255;
-      bar.style.height = `${percent * 100}%`;
+      if (bar) {
+        const value = dataArray[i * 2];
+        const percent = value / 255;
+        bar.style.height = `${percent * 100}%`;
+      }
     });
 
     if (isRecording) {
@@ -95,7 +163,7 @@ export default function Jefe() {
     setIsSending(true);
 
     const formData = new FormData();
-    formData.append('audio', blob, 'recording.ogg');
+    formData.append('audio', blob, `recording.${blob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
     try {
       const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/211c9391-504b-46d1-99cc-98050a15aa50', {
@@ -113,12 +181,15 @@ export default function Jefe() {
         });
         alert('Data sent successfully!');
         setAudioBlob(null);
-        if (audioPreviewRef.current) audioPreviewRef.current.style.display = 'none';
-        reloadPage(); // Reload the page after sending data
+        if (audioPreviewRef.current) {
+          audioPreviewRef.current.style.display = 'none';
+          audioPreviewRef.current.src = '';
+        }
+        reloadPage();
       } else {
         throw new Error(`Server responded with status: ${response.status}. Response: ${responseText}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       alert(`Failed to send data. Please try again. Error: ${error.message}`);
     } finally {
       setIsSending(false);
@@ -131,7 +202,6 @@ export default function Jefe() {
 
   return (
     <div>
-      {/* Recording Wave Animation */}
       <div className="flex justify-center items-center mb-5">
         <div className="flex space-x-1 h-20">
           {Array.from({ length: 32 }).map((_, i) => (
@@ -139,13 +209,14 @@ export default function Jefe() {
               key={i}
               className="w-1 bg-gradient-to-t from-red-400 to-red-600 transition-all duration-100 ease-linear"
               style={{ height: '20%' }}
-              ref={(el) => (waveBars.current[i] = el!)}
+              ref={(el) => {
+                if (el) waveBars.current[i] = el;
+              }}
             ></div>
           ))}
         </div>
       </div>
 
-      {/* Record/Stop Button */}
       <div className="flex justify-center mb-5">
         <button
           onClick={toggleRecording}
@@ -156,10 +227,13 @@ export default function Jefe() {
         </button>
       </div>
 
-      {/* Audio Preview */}
-      <audio ref={audioPreviewRef} controls className={`w-full ${audioBlob ? '' : 'hidden'} mb-5`}></audio>
+      <audio 
+        ref={audioPreviewRef} 
+        controls 
+        className={`w-full ${audioBlob ? '' : 'hidden'} mb-5`}
+        playsInline
+      />
 
-      {/* Status Messages */}
       <div className="flex justify-center items-center mb-5">
         <div className="text-center">
           <div className="mb-2 text-white-800">
