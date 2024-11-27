@@ -1,6 +1,8 @@
 import VoiceRecorder from './components/VoiceRecorder';
 import PesoBiochar from './components/PesoBiochar';
 import Observaciones from './components/Observaciones';
+import PesoBiochar_copy from './components/ContentHydrogen';
+import PesoBiochar_copy2 from './components/ContentCarbon';
 // import TurnoFinal from './components/TurnoFinal';
 import ViajeBiomasa from './components/ViajeBiomasa';
 import Jefe from './components/Jefe';
@@ -22,30 +24,39 @@ export default function Home() {
         
         {/* PesoBiochar Frame with 3D shadow effect */}
         <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 mb-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
-          {/* <h2 className="text-xl font-semibold mb-4 text-center">Peso Biochar</h2> */}
           <PesoBiochar />
+        </div>
+
+        {/* PesoBiochar_copy Frame */}
+        <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 mb-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
+          <PesoBiochar_copy />
+        </div>
+
+        {/* PesoBiochar_copy2 Frame */}
+        <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 mb-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
+          <PesoBiochar_copy2 />
         </div>
         
         {/* Observaciones Frame with 3D shadow effect */}
         <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-6 bg-gradient-to-b from-white to-gray-100 text-blue-900 transform transition-transform hover:scale-105 hover:shadow-3xl">
-  <h2 className="text-2xl font-bold mb-6 text-center text-blue-900">Viaje Biomasa</h2>
-  <ViajeBiomasa />
-</div>
+          <h2 className="text-2xl font-bold mb-6 text-center text-blue-900">Viaje Biomasa</h2>
+          <ViajeBiomasa />
+        </div>
+
         <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
-          {/* <h2 className="text-xl font-semibold mb-4 text-center">Observaciones</h2> */}
           <Observaciones />
         </div>
 
-<div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
-          {/* <h2 className="text-xl font-semibold mb-4 text-center">Observaciones</h2> */}
-          < Jefe />
+        <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
+          <Jefe />
         </div>
-        {/* <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
-        
+
+        {/* Uncomment the following if TurnoFinal is needed */}
+        {/* 
+        <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
           <TurnoFinal />
-        </div> */}
-
-
+        </div> 
+        */}
       </main>
     </div>
   );
