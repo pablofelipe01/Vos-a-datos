@@ -7,13 +7,25 @@ const NavBar: React.FC = () => {
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
+
   return (
     <nav
       className="fixed top-0 left-0 right-0 w-full bg-black bg-opacity-50 z-50"
-      style={{ backdropFilter: "blur(5px)" }} // Optional: Adds a blur effect to the background
+      style={{ backdropFilter: "blur(5px)" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link href="/">
+              <img
+                src="/logo.png"
+                alt="Logo"
+                className="h-12 w-auto object-contain cursor-pointer"
+              />
+            </Link>
+          </div>
+
           {/* Hamburger Menu (Mobile) */}
           <div className="flex items-center sm:hidden">
             <button
@@ -38,50 +50,78 @@ const NavBar: React.FC = () => {
               </svg>
             </button>
           </div>
+
           {/* Navigation Links */}
           <div className="hidden sm:flex sm:items-center sm:space-x-8">
+            <Link
+              href="/"
+              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+            >
+              Home
+            </Link>
             <Link
               href="/dashboard"
               className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
             >
-              Dashboard calculadora de carbono
+              Dashboard
             </Link>
             <Link
-              href="/bot"
+              href="/piroliapp"
               className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
             >
-              Bot
+              PiroliApp
             </Link>
+            
             <Link
-              href="/informe"
+              href="/bitacora"
               className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
             >
-              Informe
+              Bitácora
+            </Link>
+
+            <Link
+              href="/contenidos"
+              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+            >
+              Modulo externo
             </Link>
           </div>
         </div>
       </div>
+
       {/* Mobile Menu */}
       {isOpen && (
         <div className="sm:hidden bg-black bg-opacity-75">
           <div className="pt-2 pb-3 space-y-1">
             <Link
-              href="/clientes"
+              href="/"
               className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
             >
-              Voice Recorder
+              Home
             </Link>
             <Link
-              href="/bot"
+              href="/dashboard"
               className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
             >
-              Bot
+              Dashboard
             </Link>
             <Link
-              href="/informe"
+              href="/piroliapp"
               className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
             >
-              Informe
+              PiroliApp
+            </Link>
+            <Link
+              href="/bitacora"
+              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+            >
+              Bitácora
+            </Link>
+            <Link
+              href="/contenidos"
+              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+            >
+              Modulo externo
             </Link>
           </div>
         </div>
