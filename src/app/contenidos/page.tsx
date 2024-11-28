@@ -1,13 +1,13 @@
-import ContentCarbon from '../components/ContentCarbon';
-import ContentHydrogen from '../components/ContentHydrogen';
+//import ContentCarbon from '../components/ContentCarbon';
+//import ContentHydrogen from '../components/ContentHydrogen';
 import PorcentajeHumedad from '../components/PorcentajeHumedad';
 import NavBar from '../components/NavBar'; // Importa el componente NavBar
 
 export default function contenidos() {
   return (
     <div 
-    className="min-h-screen bg-cover bg-center bg-no-repeat relative"
-    style={{ backgroundImage: "url('/h6.png')" }} // Usando la imagen como fondo
+      className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+      style={{ backgroundImage: "url('/h6.png')" }} // Usando la imagen como fondo
     >
       {/* Agrega el NavBar en la parte superior */}
       <NavBar />
@@ -19,16 +19,20 @@ export default function contenidos() {
       <div className="flex items-center justify-center min-h-screen">
         <main className="grid grid-cols-1 gap-5 p-5 md:p-10">
           {/* ContentCarbon Frame */}
+          {/*
           <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 mb-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
             <h2 className="text-xl font-semibold mb-4 text-center">Content Carbon</h2>
             <ContentCarbon />
           </div>
+          */}
 
           {/* ContentHydrogen Frame */}
+          {/*
           <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
             <h2 className="text-xl font-semibold mb-4 text-center">Content Hydrogen</h2>
             <ContentHydrogen />
           </div>
+          */}
 
           {/* PorcentajeHumedad Frame */}
           <div className="border-2 border-gray-300 rounded-lg shadow-2xl p-5 bg-white text-blue-900 transform transition-transform hover:scale-105">
