@@ -2,13 +2,31 @@ import NavBar from '../components/NavBar'; // Aseg√∫rate de ajustar la ruta seg√
 
 export default function dashboard() {
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div 
+    className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+    style={{ backgroundImage: "url('/h6.png')" }} // Usando la imagen como fondo
+    >
       {/* Renderiza el NavBar */}
       <NavBar />
+      <br />
+      <br />
+      <br />
+      
 
       {/* Contenido principal */}
-      <div className="flex items-center justify-center h-screen">
-        <h1 className="text-3xl font-bold text-blue-600">Hola Mundo</h1>
+      <div className="flex flex-col items-center justify-center py-10">
+        {/* Airtable Embed */}
+        <iframe
+          className="airtable-embed"
+          src="https://airtable.com/embed/apprXBBomgiKhVc50/shr6xsVYrJJe428P1"
+          frameBorder="0"
+          width="80%"
+          height="533"
+          style={{
+            background: "transparent",
+            border: "1px solid #ccc",
+          }}
+        ></iframe>
       </div>
     </div>
   );
