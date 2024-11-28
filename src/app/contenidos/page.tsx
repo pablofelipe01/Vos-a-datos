@@ -5,7 +5,10 @@ import NavBar from '../components/NavBar'; // Importa el componente NavBar
 
 export default function contenidos() {
   return (
-    <div className="min-h-screen bg-gradient-to-r from-green-400 to-blue-500 relative">
+    <div 
+    className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+    style={{ backgroundImage: "url('/h6.png')" }} // Usando la imagen como fondo
+    >
       {/* Agrega el NavBar en la parte superior */}
       <NavBar />
       <br />
