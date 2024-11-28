@@ -167,7 +167,7 @@ export default function Observaciones() {
     formData.append('audio', blob, `recording.${blob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
     try {
-      const response = await fetch('', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/29f0d00d-93c9-4d73-b259-dd72d2d68507', {
         method: 'POST',
         body: formData,
       });
