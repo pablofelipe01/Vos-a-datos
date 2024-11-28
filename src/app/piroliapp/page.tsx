@@ -4,11 +4,14 @@ import PesoBiochar from '../components/PesoBiochar';
 //import TurnoFinal from './components/TurnoFinal';
 import ViajeBiomasa from '../components/ViajeBiomasa';
 //import Jefe from '../components/Jefe';
-import NavBar from '../components/NavBar'; // Importa el componente NavBar
+import NavBar from '../components/NavBar'; 
 
 export default function PiroliApp() {
   return (
-    <div className="min-h-screen bg-gradient-to-r from-green-400 to-blue-500 relative">
+    <div 
+    className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+    style={{ backgroundImage: "url('/h6.png')" }} // Usando la imagen como fondo
+    >
       {/* Agrega el NavBar en la parte superior */}
       <NavBar />
       <br />
