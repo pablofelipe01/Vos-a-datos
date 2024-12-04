@@ -314,6 +314,9 @@ export default function VoiceRecorder() {
           <option value="Yeison Cogua" className="text-black">
             Yeison Cogua
           </option>
+          <option value="Daniel González" className="text-black">
+            Daniel González
+          </option>
           <option value="Santiago Amaya" className="text-black">
             Santiago Amaya
           </option>
