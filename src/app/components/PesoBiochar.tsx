@@ -104,7 +104,7 @@ export default function TemperaturaProduccionLona() {
     formData.append('audio', blob, `temperatura_lona.${blob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
     try {
-      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook-test/e699666b-1126-497e-ba45-4a06aafeaf5e', {
+      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/e699666b-1126-497e-ba45-4a06aafeaf5e', {
         method: 'POST',
         body: formData,
       });
