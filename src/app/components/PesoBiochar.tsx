@@ -183,7 +183,7 @@ export default function TemperaturaProduccionLona() {
           className="bg-blue-500 text-white py-2 px-4 rounded-md mt-5"
           disabled={!audioBlob || isSending}
         >
-          {isSending ? 'Enviando...' : 'Enviar Audio'}
+          {isSending ? 'Enviando...' : 'Enviar Audio'} 
         </button>
       </div>
     </div>
