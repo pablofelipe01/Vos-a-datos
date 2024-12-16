@@ -57,7 +57,7 @@ export default function TemperaturaProduccionLona() {
 
   const startRecording = (stream: MediaStream) => {
     setIsRecording(true);
-
+  
     if (isAppleDevice && window.RecordRTC) {
       const recorder = new window.RecordRTC(stream, {
         type: 'audio',
@@ -65,31 +65,33 @@ export default function TemperaturaProduccionLona() {
         recorderType: window.RecordRTC.StereoAudioRecorder,
       });
       recorder.startRecording();
-      recorderRef.current = recorder;
+      recorderRef.current = recorder; // Aquí recorderRef se asigna de manera segura
     } else {
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/mp4';
       const recorder = new MediaRecorder(stream, { mimeType });
       const chunks: BlobPart[] = [];
-
+  
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data);
       };
-
+  
       recorder.onstop = () => {
         const blob = new Blob(chunks, { type: mimeType });
         handleRecordingComplete(blob);
       };
-
+  
       recorder.start();
       recorderRef.current = recorder;
     }
   };
+  
 
   const stopRecording = () => {
     setIsRecording(false);
-
+  
+    // Verificar si recorderRef.current no es null antes de llamar a stopRecording
     if (isAppleDevice && recorderRef.current) {
       recorderRef.current.stopRecording(() => {
         const blob = recorderRef.current.getBlob();
@@ -98,10 +100,11 @@ export default function TemperaturaProduccionLona() {
     } else if (recorderRef.current instanceof MediaRecorder) {
       recorderRef.current.stop();
     }
-
+  
     // Detener el stream de audio
     streamRef.current?.getTracks().forEach((track) => track.stop());
   };
+  
 
   const handleRecordingComplete = (blob: Blob) => {
     setAudioBlob(blob);
