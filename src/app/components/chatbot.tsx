@@ -107,7 +107,7 @@ const EmbedFrame = () => {
               border: "none", // Elimina el borde del iframe
             }}
             title="Piroly Bot"
-            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allow="microphone; accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           ></iframe>
         </div>
