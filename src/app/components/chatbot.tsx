@@ -66,16 +66,16 @@ const EmbedFrame = () => {
             position: "absolute",
             bottom: "40px",
             right: "20px",
-            width: isMaximized ? "80vw" : isMinimized ? "200px" : "400px", // Ajuste dinámico del tamaño
-            height: isMaximized ? "80vh" : isMinimized ? "50px" : "500px", // Ajuste dinámico de la altura
+            width: isMaximized ? "80vw" : "400px", // Ajuste dinámico del tamaño
+            height: isMaximized ? "80vh" : "500px", // Ajuste dinámico de la altura
             border: "2px solid #ccc", // Borde del recuadro
             borderRadius: "10px", // Bordes redondeados para el recuadro
             boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)", // Sombra para el recuadro
             overflow: "hidden", // Evita que el contenido se salga del recuadro
             zIndex: 101, // Asegura que el chat esté por encima de otros elementos
-            transition: "all 0.3s ease", // Transición suave para los cambios de tamaño
             top: position.y,
             left: position.x,
+            transition: "all 0.3s ease", // Transición suave para los cambios de tamaño
           }}
           onMouseDown={startDrag} // Activa el arrastre cuando se hace clic en la ventana
         >
@@ -99,26 +99,24 @@ const EmbedFrame = () => {
           </div>
 
           {/* Contenido del chat (iframe) */}
-          {!isMinimized && (
-            <iframe
-              src="https://pirolybot.vercel.app/bot"
-              style={{
-                width: "100%", // Hace que el iframe ocupe todo el ancho del recuadro
-                height: "100%", // Hace que el iframe ocupe todo el alto del recuadro
-                border: "none", // Elimina el borde del iframe
-              }}
-              title="Piroly Bot"
-              allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
-          )}
+          <iframe
+            src="https://pirolybot.vercel.app/bot"
+            style={{
+              width: "100%", // Hace que el iframe ocupe todo el ancho del recuadro
+              height: "100%", // Hace que el iframe ocupe todo el alto del recuadro
+              border: "none", // Elimina el borde del iframe
+            }}
+            title="Piroly Bot"
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
         </div>
       )}
     </div>
   );
 };
 
-// Estilo de los botones de minimizar, maximizar y cerrar
+// Estilo de los botones de maximizar y cerrar
 const buttonStyle = {
   background: "none",
   border: "none",
