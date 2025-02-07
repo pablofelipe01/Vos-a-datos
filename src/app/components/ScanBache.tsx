@@ -6,13 +6,13 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 const MultiModalInput = () => {
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const [isScanning, setIsScanning] = useState<boolean>(false); // Mantener solo el estado de escaneo
+  const [isScanning, setIsScanning] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const qrScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
     return () => {
-      stopQRScanner(); // Limpiar el escáner al desmontar el componente
+      stopQRScanner();
     };
   }, []);
 
@@ -20,15 +20,19 @@ const MultiModalInput = () => {
     if (isScanning) return;
     setIsScanning(true);
 
-    const scanner = new Html5QrcodeScanner("qr-scanner", {
-      fps: 10, // Frames per second
-      qrbox: { width: 250, height: 250 }, // Tamaño de la caja de escaneo
-    });
+    const scanner = new Html5QrcodeScanner(
+      "qr-scanner", 
+      { 
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      },
+      false // No iniciar el escaneo automáticamente
+    );
 
     scanner.render(
       (decodedText) => {
-        setScannedData(decodedText); // Guardar el texto escaneado en la variable
-        alert(`Código QR detectado: ${decodedText}`); // Mostrar el contenido en un mensaje
+        setScannedData(decodedText);
+        alert(`Código QR detectado: ${decodedText}`);
         stopQRScanner();
       },
       (error) => {
@@ -59,7 +63,6 @@ const MultiModalInput = () => {
   const captureBacheID = () => {
     if (scannedData) {
       alert(`ID del Bache Capturado: ${scannedData}`);
-      // Aquí podrías agregar lógica adicional para procesar el ID del bache
     }
   };
 
@@ -91,6 +94,8 @@ const MultiModalInput = () => {
           onChange={handleFileSelect}
           multiple
           className="hidden"
+          accept="image/*"
+          capture="environment"
         />
 
         {/* Botón para capturar ID del Bache */}
