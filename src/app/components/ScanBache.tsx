@@ -7,40 +7,64 @@ const MultiModalInput = () => {
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const qrScannerRef = useRef<Html5QrcodeScanner | null>(null);
 
   useEffect(() => {
+    // Detectar si es dispositivo móvil
+    const checkMobile = () => {
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     return () => {
       stopQRScanner();
+      window.removeEventListener('resize', checkMobile);
     };
   }, []);
 
-  const startQRScanner = () => {
+  const startQRScanner = async () => {
     if (isScanning) return;
-    setIsScanning(true);
 
-    const scanner = new Html5QrcodeScanner(
-      "qr-scanner", 
-      { 
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-      },
-      false // No iniciar el escaneo automáticamente
-    );
+    try {
+      // Solicitar permiso de cámara
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop()); // Liberar la cámara después de obtener permiso
 
-    scanner.render(
-      (decodedText) => {
-        setScannedData(decodedText);
-        alert(`Código QR detectado: ${decodedText}`);
-        stopQRScanner();
-      },
-      (error) => {
-        console.warn("Error al escanear el código QR:", error);
-      }
-    );
+      setIsScanning(true);
+      const scanner = new Html5QrcodeScanner(
+        "qr-scanner",
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true,
+          showZoomSliderIfSupported: true,
+          defaultZoomValueIfSupported: 2
+        },
+        false // verbose
+      );
 
-    qrScannerRef.current = scanner;
+      scanner.render(
+        (decodedText) => {
+          setScannedData(decodedText);
+          alert(`Código QR detectado: ${decodedText}`);
+          stopQRScanner();
+        },
+        (error) => {
+          console.warn("Error al escanear el código QR:", error);
+        }
+      );
+
+      qrScannerRef.current = scanner;
+
+    } catch (error) {
+      alert("Error al acceder a la cámara. Por favor, asegúrese de dar los permisos necesarios.");
+      console.error("Error al acceder a la cámara:", error);
+    }
   };
 
   const stopQRScanner = () => {
@@ -69,16 +93,18 @@ const MultiModalInput = () => {
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
       <div className="flex items-center space-x-4">
-        {/* Botón para escanear QR */}
-        <button
-          onClick={startQRScanner}
-          disabled={isScanning}
-          className={`p-3 rounded-full bg-blue-500 hover:bg-blue-600 transition-all ${
-            isScanning ? "opacity-50 cursor-not-allowed" : ""
-          }`}
-        >
-          <Camera className="w-5 h-5 text-white" />
-        </button>
+        {/* Botón para escanear QR - solo visible en móviles */}
+        {isMobile && (
+          <button
+            onClick={startQRScanner}
+            disabled={isScanning}
+            className={`p-3 rounded-full bg-blue-500 hover:bg-blue-600 transition-all ${
+              isScanning ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            <Camera className="w-5 h-5 text-white" />
+          </button>
+        )}
 
         {/* Botón para adjuntar archivos */}
         <button
@@ -93,9 +119,8 @@ const MultiModalInput = () => {
           ref={fileInputRef}
           onChange={handleFileSelect}
           multiple
-          className="hidden"
           accept="image/*"
-          capture="environment"
+          className="hidden"
         />
 
         {/* Botón para capturar ID del Bache */}
