@@ -331,6 +331,7 @@ export default function VoiceRecorder() {
           <li>Consumo de gas Inicial</li>
           <li>Hertz</li>
           <li>Peso por Minuto</li>
+          <li>Consumo energico</li>
         </ul>
       </div>
 
