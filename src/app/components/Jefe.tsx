@@ -166,7 +166,7 @@ export default function Jefe() {
     formData.append('audio', blob, `recording.${blob.type.includes('webm') ? 'webm' : 'mp4'}`);
 
     try {
-      const response = await fetch('https://tok-n8n-sol.onrender.com/webhook/211c9391-504b-46d1-99cc-98050a15aa50', {
+      const response = await fetch('https://n8n-sirius-agentic.onrender.com/webhook/211c9391-504b-46d1-99cc-98050a15aa50', {
         method: 'POST',
         body: formData,
       });
