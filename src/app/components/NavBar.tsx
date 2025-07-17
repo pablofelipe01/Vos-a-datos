@@ -10,18 +10,18 @@ const NavBar: React.FC = () => {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 w-full bg-black bg-opacity-50 z-50"
-      style={{ backdropFilter: "blur(5px)" }}
+      className="fixed top-0 left-0 right-0 w-full bg-black bg-opacity-60 z-50 transition-all duration-300"
+      style={{ backdropFilter: "blur(10px)" }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
+        <div className="flex justify-between h-20 items-center">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
               <img
                 src="/logo.png"
                 alt="Logo"
-                className="h-12 w-auto object-contain cursor-pointer"
+                className="h-14 w-auto object-contain cursor-pointer transition-transform duration-300 hover:scale-105"
               />
             </Link>
           </div>
@@ -52,50 +52,50 @@ const NavBar: React.FC = () => {
           </div>
 
           {/* Navigation Links */}
-          <div className="hidden sm:flex sm:items-center sm:space-x-8">
+          <div className="hidden sm:flex sm:items-center sm:space-x-1">
             <Link
               href="/"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
               Home
             </Link>
             <Link
               href="/dashboard"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
               Dashboard
             </Link>
             <Link
               href="/piroliapp"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
               PiroliApp
             </Link>
             
             <Link
               href="/bitacora"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
               Bitácora
             </Link>
 
             <Link
               href="/contenidos"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
-              Modulo externo
+              Módulo externo
             </Link>
             <Link
               href="/seguimiento_turno"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
-              Seguimiento turno
+              Mi Turno
             </Link>
             <Link
               href="/scaner"
-              className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105"
             >
-              Scanear Bache
+              Scanner QR
             </Link>
           </div>
         </div>
@@ -103,49 +103,49 @@ const NavBar: React.FC = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="sm:hidden bg-black bg-opacity-75">
-          <div className="pt-2 pb-3 space-y-1">
+        <div className="sm:hidden bg-black bg-opacity-90 backdrop-blur-md">
+          <div className="pt-4 pb-6 space-y-2 px-4">
             <Link
               href="/"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
-              Home
+              🏠 Home
             </Link>
             <Link
               href="/dashboard"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
-              Dashboard
+              📊 Dashboard
             </Link>
             <Link
               href="/piroliapp"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
-              PiroliApp
+              🔥 PiroliApp
             </Link>
             <Link
               href="/bitacora"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
-              Bitácora
+              📋 Bitácora
             </Link>
             <Link
               href="/contenidos"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
-              Modulo externo
+              🔗 Módulo externo
             </Link>
             <Link
               href="/seguimiento_turno"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
-              Seguimiento turno
+              ⏰ Mi Turno
             </Link>
             <Link
               href="/scaner"
-              className="block pl-3 pr-4 py-2 border-l-4 border-blue-500 text-base font-medium text-white bg-gray-800 focus:outline-none focus:bg-gray-700 focus:border-blue-500"
+              className="block px-4 py-3 rounded-lg text-base font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200"
             >
-              Scanear Bache
+              📱 Scanner QR
             </Link>
           </div>
         </div>
