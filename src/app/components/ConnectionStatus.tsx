@@ -1,13 +1,12 @@
 "use client";
 import React, { useState } from 'react';
-import { getAirtableConnectionStatus, getExampleConfig } from '../utils/airtableConfig';
+import { getAirtableConnectionStatus } from '../utils/airtableConfig';
 
 interface ConnectionStatusProps {
-  isConfigured: boolean;
   className?: string;
 }
 
-const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ isConfigured, className = '' }) => {
+const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ className = '' }) => {
   const [showDetails, setShowDetails] = useState(false);
   const connectionStatus = getAirtableConnectionStatus();
 

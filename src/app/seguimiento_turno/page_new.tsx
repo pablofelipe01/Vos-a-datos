@@ -53,7 +53,7 @@ export default function SeguimientoTurno() {
       const ultimosTurnos = turnos.slice(0, 10); // Últimos 10 turnos
       
       // Calcular métricas del turno actual
-      const metricas = calcularMetricas(turnoActual, turnos);
+      const metricas = calcularMetricas(turnoActual);
       
       // Calcular estadísticas generales
       const estadisticas = calcularEstadisticas(turnos);
@@ -69,9 +69,10 @@ export default function SeguimientoTurno() {
       setUltimaActualizacion(new Date());
       console.log('✅ Datos de seguimiento cargados exitosamente');
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Error cargando datos de seguimiento:', err);
-      setError(`Error al cargar datos: ${err.message}`);
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error al cargar datos: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -80,26 +81,26 @@ export default function SeguimientoTurno() {
   const encontrarTurnoActual = (turnos: TurnoData[]): TurnoData | null => {
     // Buscar primero un turno con estado "Activo"
     const turnoActivo = turnos.find(t => {
-      const turnoAny = t as any;
+      const turnoRecord = t as Record<string, unknown>;
       return t.estado === 'Activo' || 
-             turnoAny["Estado Final Planta"] === 'Encendida';
+             turnoRecord["Estado Final Planta"] === 'Encendida';
     });
     
     if (turnoActivo) return turnoActivo;
     
     // Si no hay turno activo, tomar el más reciente
     const turnosOrdenados = turnos.sort((a, b) => {
-      const turnoAnyA = a as any;
-      const turnoAnyB = b as any;
-      const fechaA = new Date(turnoAnyA["Fecha Inicio Turno"] || a.fecha || '');
-      const fechaB = new Date(turnoAnyB["Fecha Inicio Turno"] || b.fecha || '');
+      const turnoRecordA = a as Record<string, unknown>;
+      const turnoRecordB = b as Record<string, unknown>;
+      const fechaA = new Date(String(turnoRecordA["Fecha Inicio Turno"] || a.fecha || ''));
+      const fechaB = new Date(String(turnoRecordB["Fecha Inicio Turno"] || b.fecha || ''));
       return fechaB.getTime() - fechaA.getTime();
     });
     
     return turnosOrdenados[0] || null;
   };
 
-  const calcularMetricas = (turno: TurnoData | null, todosTurnos: TurnoData[]): MetricasTurno => {
+  const calcularMetricas = (turno: TurnoData | null): MetricasTurno => {
     if (!turno) {
       return {
         rendimiento: 0,
@@ -115,31 +116,31 @@ export default function SeguimientoTurno() {
       };
     }
 
-    // Calcular biochar total del turno usando any para acceder a campos dinámicos
-    const turnoAny = turno as any;
-    const biocharTotal = turnoAny["Total Biochar Produccido Turno"] || 
-                        (turnoAny["Peso Biochar (KG) (from Balances Masa)"] || []).reduce((sum: number, peso: number) => sum + peso, 0) || 
-                        turno.biochar_kg || 0;
+    // Calcular biochar total del turno usando Record para acceder a campos dinámicos
+    const turnoRecord = turno as Record<string, unknown>;
+    const biocharTotal = Number(turnoRecord["Total Biochar Produccido Turno"]) || 
+                        ((turnoRecord["Peso Biochar (KG) (from Balances Masa)"] as number[]) || []).reduce((sum: number, peso: number) => sum + peso, 0) || 
+                        Number(turno.biochar_kg) || 0;
 
     // Calcular biomasa total estimada
     const biomasaTotal = biocharTotal > 0 ? biocharTotal * 4 : 0; // Estimación: 4kg biomasa por 1kg biochar
 
     // Calcular consumos
-    const energiaConsumida = (turnoAny["Consumo Energia Fin"] || 0) - (turnoAny["Consumo Energia Inicio"] || 0);
-    const gasConsumido = (turnoAny["Consumo Gas Final"] || 0) - (turnoAny["Consumo Gas Inicial"] || 0);
+    const energiaConsumida = Number(turnoRecord["Consumo Energia Fin"] || 0) - Number(turnoRecord["Consumo Energia Inicio"] || 0);
+    const gasConsumido = Number(turnoRecord["Consumo Gas Final"] || 0) - Number(turnoRecord["Consumo Gas Inicial"] || 0);
 
     // Calcular rendimiento
     const rendimiento = biomasaTotal > 0 ? (biocharTotal / biomasaTotal) * 100 : 0;
 
     // Calcular temperatura promedio
-    const temperaturas = turnoAny["Temperatura Horno (H1) (from Balances Masa)"] || [];
+    const temperaturas = (turnoRecord["Temperatura Horno (H1) (from Balances Masa)"] as number[]) || [];
     const temperaturaPromedio = temperaturas.length > 0 
       ? temperaturas.reduce((sum: number, temp: number) => sum + temp, 0) / temperaturas.length 
-      : turno.temperatura_inicio || 0;
+      : Number(turno.temperatura_inicio) || 0;
 
     // Calcular tiempo transcurrido
-    const fechaInicio = new Date(turnoAny["Fecha Inicio Turno"] || turno.fecha || Date.now());
-    const fechaFin = turnoAny["Fecha Fin Turno"] ? new Date(turnoAny["Fecha Fin Turno"]) : new Date();
+    const fechaInicio = new Date(String(turnoRecord["Fecha Inicio Turno"] || turno.fecha || Date.now()));
+    const fechaFin = turnoRecord["Fecha Fin Turno"] ? new Date(String(turnoRecord["Fecha Fin Turno"])) : new Date();
     const tiempoMs = fechaFin.getTime() - fechaInicio.getTime();
     const horas = Math.floor(tiempoMs / (1000 * 60 * 60));
     const minutos = Math.floor((tiempoMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -153,10 +154,8 @@ export default function SeguimientoTurno() {
     if (alertas.length === 0) alertas.push('✅ Operación normal');
 
     // Determinar estado
-    const estado = turnoAny["Estado Final Planta"] === 'Encendida' ? 'Activo' : 
-                  turnoAny["Fecha Fin Turno"] ? 'Completado' : 'En proceso';
-
-    return {
+    const estado = turnoRecord["Estado Final Planta"] === 'Encendida' ? 'Activo' :
+                  turnoRecord["Fecha Fin Turno"] ? 'Completado' : 'En proceso';    return {
       rendimiento: Math.round(rendimiento * 100) / 100,
       temperaturaPromedio: Math.round(temperaturaPromedio),
       tiempoTranscurrido,
@@ -173,22 +172,22 @@ export default function SeguimientoTurno() {
   const calcularEstadisticas = (turnos: TurnoData[]) => {
     const hoy = new Date().toISOString().split('T')[0];
     const turnosHoy = turnos.filter(t => {
-      const turnoAny = t as any;
-      const fechaTurno = (turnoAny["Fecha Inicio Turno"] || t.fecha || '').split('T')[0];
+      const turnoRecord = t as Record<string, unknown>;
+      const fechaTurno = String(turnoRecord["Fecha Inicio Turno"] || t.fecha || '').split('T')[0];
       return fechaTurno === hoy;
     });
 
     const rendimientos = turnos
       .map(t => {
-        const turnoAny = t as any;
-        const biochar = turnoAny["Total Biochar Produccido Turno"] || 0;
+        const turnoRecord = t as Record<string, unknown>;
+        const biochar = Number(turnoRecord["Total Biochar Produccido Turno"]) || 0;
         const biomasa = biochar * 4; // Estimación
         return biomasa > 0 ? (biochar / biomasa) * 100 : 0;
       })
       .filter(r => r > 0);
 
     const temperaturas = turnos
-      .flatMap(t => (t as any)["Temperatura Horno (H1) (from Balances Masa)"] || [])
+      .flatMap(t => ((t as Record<string, unknown>)["Temperatura Horno (H1) (from Balances Masa)"] as number[]) || [])
       .filter((temp: number) => temp > 0);
 
     return {
@@ -408,16 +407,16 @@ export default function SeguimientoTurno() {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-700">Operador:</span>
-                    <span className="text-gray-900">{(turnoActual as any).Operador || turnoActual.operador || 'N/A'}</span>
+                    <span className="text-gray-900">{String((turnoActual as Record<string, unknown>).Operador || turnoActual.operador || 'N/A')}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-700">Inicio:</span>
-                    <span className="text-gray-900">{formatearFecha((turnoActual as any)["Fecha Inicio Turno"] || turnoActual.fecha)}</span>
+                    <span className="text-gray-900">{formatearFecha(String((turnoActual as Record<string, unknown>)["Fecha Inicio Turno"] || turnoActual.fecha || ''))}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-700">Estado Planta:</span>
-                    <span className={`px-2 py-1 rounded text-sm ${(turnoActual as any)["Estado Final Planta"] === 'Encendida' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {(turnoActual as any)["Estado Final Planta"] || 'Desconocido'}
+                    <span className={`px-2 py-1 rounded text-sm ${String((turnoActual as Record<string, unknown>)["Estado Final Planta"]) === 'Encendida' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {String((turnoActual as Record<string, unknown>)["Estado Final Planta"] || 'Desconocido')}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -483,24 +482,24 @@ export default function SeguimientoTurno() {
               <h3 className="text-xl font-bold text-gray-900 mb-4">🕒 Últimos Turnos</h3>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {ultimosTurnos.slice(0, 8).map((turno: TurnoData, index: number) => {
-                  const turnoAny = turno as any;
+                  const turnoRecord = turno as Record<string, unknown>;
                   return (
                     <div key={turno.id || index} className="border-l-4 border-blue-500 pl-4 py-2 hover:bg-gray-50">
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="font-semibold text-gray-900">
-                            {turnoAny.Operador || turno.operador || 'Operador N/A'}
+                            {String(turnoRecord.Operador || turno.operador || 'Operador N/A')}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {formatearFecha(turnoAny["Fecha Inicio Turno"] || turno.fecha)}
+                            {formatearFecha(String(turnoRecord["Fecha Inicio Turno"] || turno.fecha || ''))}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-green-600">
-                            {turnoAny["Total Biochar Produccido Turno"] || 0} kg biochar
+                            {Number(turnoRecord["Total Biochar Produccido Turno"]) || 0} kg biochar
                           </p>
-                          <div className={`inline-block px-2 py-1 rounded text-xs ${getEstadoColor(turnoAny["Estado Final Planta"] === 'Encendida' ? 'Activo' : 'Completado')}`}>
-                            {turnoAny["Estado Final Planta"] === 'Encendida' ? 'Activo' : 'Completado'}
+                          <div className={`inline-block px-2 py-1 rounded text-xs ${getEstadoColor(turnoRecord["Estado Final Planta"] === 'Encendida' ? 'Activo' : 'Completado')}`}>
+                            {turnoRecord["Estado Final Planta"] === 'Encendida' ? 'Activo' : 'Completado'}
                           </div>
                         </div>
                       </div>
