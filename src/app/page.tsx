@@ -2,7 +2,6 @@
 import NavBar from './components/NavBar';
 import FeaturesSection from './components/FeaturesSection';
 import VideoBackground from './components/VideoBackground';
-import { useState } from 'react';
 
 export default function Home() {
   const scrollToFeatures = () => {

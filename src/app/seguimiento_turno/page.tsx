@@ -1,60 +1,227 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import NavBar from '../components/NavBar';
-import ConnectionStatus from '../components/ConnectionStatus';
-import AirtableDebug from '../components/AirtableDebug';
-import { airtableService } from '../services/airtableService';
+import { airtableService, TurnoData, BalanceMasaData } from '../services/airtableService';
 
-interface TurnoActualData {
-  turno: any;
-  personal: any[];
-  procesos: any[];
-  metricas: {
-    rendimiento: number;
-    temperaturaPromedio: number;
-    tiempoTranscurrido: string;
-    eficiencia: number;
-    estado: string;
-    alertas: string[];
-    totalBalancesMasa: number;
-    totalViajesBiomasa: number;
-    bitacoraEntradas: number;
-  };
-  balancesMasa: any[];
-  viajesBiomasa: any[];
-  bitacoraHistorial: any[];
+interface MetricasTurno {
+  rendimiento: number;
+  temperaturaPromedio: number;
+  tiempoTranscurrido: string;
+  eficiencia: number;
+  estado: string;
+  alertas: string[];
+  biomasaTotal: number;
+  biocharTotal: number;
+  energiaConsumida: number;
+  gasConsumido: number;
 }
 
-export default function MiTurno() {
-  const [datosActuales, setDatosActuales] = useState<TurnoActualData | null>(null);
+interface DashboardData {
+  turnoActual: TurnoData | null;
+  metricas: MetricasTurno;
+  balancesMasa: BalanceMasaData[];
+}
+
+export default function SeguimientoTurno() {
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ultimaActualizacion, setUltimaActualizacion] = useState<string>('');
+  const [ultimaActualizacion, setUltimaActualizacion] = useState<Date>(new Date());
 
-  useEffect(() => {
-    loadDatosTurnoActual();
-    
-    // Actualizar cada 30 segundos
-    const interval = setInterval(loadDatosTurnoActual, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadDatosTurnoActual = async () => {
+  const cargarDatosTurnoActual = async () => {
     try {
       setError(null);
-      console.log('🚀 Cargando último turno desde Airtable...');
-      // No pasamos ID específico, obtendrá el último registro automáticamente
-      const datos = await airtableService.getDatosTurnoActual();
-      console.log('✅ Datos obtenidos:', datos);
-      setDatosActuales(datos);
-      setUltimaActualizacion(new Date().toLocaleTimeString('es-ES'));
-    } catch (err) {
-      console.error('💥 Error loading turno actual:', err);
-      setError('Error al cargar datos del turno actual desde Airtable: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      console.log('🔄 Cargando datos de seguimiento de turno...');
+      
+      // Obtener todos los turnos para análisis
+      const turnos = await airtableService.getTurnos();
+      console.log(`✅ ${turnos.length} turnos obtenidos de Airtable`);
+      
+      if (turnos.length === 0) {
+        throw new Error('No se encontraron turnos en la base de datos');
+      }
+
+      // Encontrar el último turno (el más reciente por fecha)
+      const turnoActual = encontrarTurnoActual(turnos);
+      
+      if (!turnoActual) {
+        throw new Error('No se pudo determinar el último turno');
+      }
+
+      console.log('📊 Procesando último turno:', {
+        id: turnoActual.id,
+        operador: (turnoActual as Record<string, unknown>).Operador || turnoActual.operador,
+        fecha: (turnoActual as Record<string, unknown>)["Fecha Inicio Turno"] || turnoActual.fecha,
+        biochar: (turnoActual as Record<string, unknown>)["Total Biochar Produccido Turno"] || 0
+      });
+      
+      // Calcular métricas del último turno
+      const metricas = calcularMetricas(turnoActual);
+      
+      // Obtener balances de masa recientes
+      const balancesMasa = await airtableService.getBalancesMasa(10);
+
+      const datos: DashboardData = {
+        turnoActual,
+        metricas,
+        balancesMasa
+      };
+
+      setDashboardData(datos);
+      setUltimaActualizacion(new Date());
+      console.log('✅ Datos de seguimiento cargados exitosamente');
+      console.log('📈 Métricas calculadas:', {
+        rendimiento: metricas.rendimiento,
+        biocharTotal: metricas.biocharTotal,
+        temperaturaPromedio: metricas.temperaturaPromedio,
+        estado: metricas.estado
+      });
+      
+    } catch (err: unknown) {
+      console.error('❌ Error cargando datos de seguimiento:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error al cargar datos: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const encontrarTurnoActual = (turnos: TurnoData[]): TurnoData | null => {
+    if (turnos.length === 0) return null;
+    
+    // Ordenar turnos por fecha de inicio para obtener el más reciente
+    const turnosOrdenados = turnos.sort((a, b) => {
+      const turnoRecordA = a as Record<string, unknown>;
+      const turnoRecordB = b as Record<string, unknown>;
+      
+      // Obtener fechas de diferentes campos posibles
+      const fechaA = turnoRecordA["Fecha Inicio Turno"] || a.fecha || turnoRecordA.createdTime || '';
+      const fechaB = turnoRecordB["Fecha Inicio Turno"] || b.fecha || turnoRecordB.createdTime || '';
+      
+      // Convertir a timestamps para comparar
+      const timestampA = new Date(fechaA as string).getTime();
+      const timestampB = new Date(fechaB as string).getTime();
+      
+      // Ordenar descendente (más reciente primero)
+      return timestampB - timestampA;
+    });
+    
+    const ultimoTurno = turnosOrdenados[0];
+    console.log('🎯 Último turno encontrado:', {
+      id: ultimoTurno.id,
+      operador: (ultimoTurno as Record<string, unknown>).Operador || ultimoTurno.operador,
+      fecha: (ultimoTurno as Record<string, unknown>)["Fecha Inicio Turno"] || ultimoTurno.fecha,
+      estado: (ultimoTurno as Record<string, unknown>)["Estado Final Planta"]
+    });
+    
+    return ultimoTurno;
+  };
+
+  const calcularMetricas = (turno: TurnoData | null): MetricasTurno => {
+    if (!turno) {
+      return {
+        rendimiento: 0,
+        temperaturaPromedio: 0,
+        tiempoTranscurrido: '0 horas',
+        eficiencia: 0,
+        estado: 'Sin datos',
+        alertas: ['No hay turno activo'],
+        biomasaTotal: 0,
+        biocharTotal: 0,
+        energiaConsumida: 0,
+        gasConsumido: 0
+      };
+    }
+
+    // Calcular biochar total del turno usando Record para acceder a campos dinámicos
+    const turnoRecord = turno as Record<string, unknown>;
+    const biocharTotal = Number(turnoRecord["Total Biochar Produccido Turno"]) || 
+                        ((turnoRecord["Peso Biochar (KG) (from Balances Masa)"] as number[]) || []).reduce((sum: number, peso: number) => sum + peso, 0) || 
+                        Number(turno.biochar_kg) || 0;
+
+    // Calcular biomasa total estimada
+    const biomasaTotal = biocharTotal > 0 ? biocharTotal * 4 : 0; // Estimación: 4kg biomasa por 1kg biochar
+
+    // Calcular consumos
+    const energiaConsumida = Number(turnoRecord["Consumo Energia Fin"] || 0) - Number(turnoRecord["Consumo Energia Inicio"] || 0);
+    const gasConsumido = Number(turnoRecord["Consumo Gas Final"] || 0) - Number(turnoRecord["Consumo Gas Inicial"] || 0);
+
+    // Calcular rendimiento
+    const rendimiento = biomasaTotal > 0 ? (biocharTotal / biomasaTotal) * 100 : 0;
+
+    // Calcular temperatura promedio
+    const temperaturas = (turnoRecord["Temperatura Horno (H1) (from Balances Masa)"] as number[]) || [];
+    const temperaturaPromedio = temperaturas.length > 0 
+      ? temperaturas.reduce((sum: number, temp: number) => sum + temp, 0) / temperaturas.length 
+      : Number(turno.temperatura_inicio) || 0;
+
+    // Calcular tiempo transcurrido
+    const fechaInicio = new Date(String(turnoRecord["Fecha Inicio Turno"] || turno.fecha || Date.now()));
+    const fechaFin = turnoRecord["Fecha Fin Turno"] ? new Date(String(turnoRecord["Fecha Fin Turno"])) : new Date();
+    const tiempoMs = fechaFin.getTime() - fechaInicio.getTime();
+    const horas = Math.floor(tiempoMs / (1000 * 60 * 60));
+    const minutos = Math.floor((tiempoMs % (1000 * 60 * 60)) / (1000 * 60));
+    const tiempoTranscurrido = `${horas}h ${minutos}m`;
+
+    // Generar alertas
+    const alertas: string[] = [];
+    if (temperaturaPromedio > 800) alertas.push('⚠️ Temperatura alta detectada');
+    if (rendimiento < 15) alertas.push('📉 Rendimiento por debajo del promedio');
+    if (energiaConsumida > 50) alertas.push('⚡ Alto consumo energético');
+    if (alertas.length === 0) alertas.push('✅ Operación normal');
+
+    // Determinar estado
+    const estado = turnoRecord["Estado Final Planta"] === 'Encendida' ? 'Activo' : 
+                  turnoRecord["Fecha Fin Turno"] ? 'Completado' : 'En proceso';
+
+    return {
+      rendimiento: Math.round(rendimiento * 100) / 100,
+      temperaturaPromedio: Math.round(temperaturaPromedio),
+      tiempoTranscurrido,
+      eficiencia: Math.min(100, Math.round((rendimiento / 25) * 100)), // 25% rendimiento = 100% eficiencia
+      estado,
+      alertas,
+      biomasaTotal: Math.round(biomasaTotal),
+      biocharTotal: Math.round(biocharTotal),
+      energiaConsumida: Math.round(energiaConsumida * 100) / 100,
+      gasConsumido: Math.round(gasConsumido * 100) / 100
+    };
+  };
+
+  useEffect(() => {
+    console.log('🚀 Iniciando seguimiento de turno...');
+    cargarDatosTurnoActual();
+  }, []);
+
+  const formatearFecha = (fecha: string | undefined) => {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getEstadoColor = (estado: string) => {
+    switch (estado) {
+      case 'Activo': 
+      case 'En proceso': 
+        return 'bg-green-100 text-green-800';
+      case 'Completado': 
+        return 'bg-blue-100 text-blue-800';
+      case 'Suspendido': 
+        return 'bg-red-100 text-red-800';
+      default: 
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTemperaturaColor = (temp: number) => {
+    if (temp < 300) return 'text-blue-600';
+    if (temp > 800) return 'text-red-600';
+    return 'text-green-600';
   };
 
   if (loading) {
@@ -62,259 +229,273 @@ export default function MiTurno() {
       <div className="min-h-screen bg-cover bg-center bg-no-repeat relative"
            style={{ backgroundImage: "url('/h6.png')" }}>
         <NavBar />
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="bg-white bg-opacity-90 p-8 rounded-lg">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-700">Cargando datos del turno actual...</p>
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div className="relative z-10 flex items-center justify-center min-h-screen">
+          <div className="bg-white bg-opacity-95 p-8 rounded-lg shadow-xl">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-center mt-4 text-lg font-semibold">Cargando seguimiento de turno...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error || !datosActuales) {
+  if (error || !dashboardData) {
     return (
       <div className="min-h-screen bg-cover bg-center bg-no-repeat relative"
            style={{ backgroundImage: "url('/h6.png')" }}>
         <NavBar />
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <div className="space-y-4 max-w-4xl w-full">
-            <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg">
-              <h3 className="font-bold">Error de Conexión</h3>
-              <p>{error}</p>
+        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div className="relative z-10 pt-20 px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error || 'No se pudieron cargar los datos'}</span>
               <button 
-                onClick={loadDatosTurnoActual}
-                className="mt-4 bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                className="mt-3 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                onClick={cargarDatosTurnoActual}
               >
-                Reintentar
+                🔄 Reintentar
               </button>
             </div>
-            
-            {/* Debug component para diagnosticar el problema */}
-            <AirtableDebug />
           </div>
         </div>
       </div>
     );
   }
 
-  const { turno, metricas } = datosActuales;
+  const { turnoActual, metricas, balancesMasa } = dashboardData;
 
   return (
     <div className="min-h-screen bg-cover bg-center bg-no-repeat relative"
          style={{ backgroundImage: "url('/h6.png')" }}>
       <NavBar />
       
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      {/* Overlay para mejorar legibilidad */}
+      <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+      
+      <div className="relative z-10 pt-20 px-4 pb-8">
         <div className="max-w-7xl mx-auto">
           
-          {/* Header con Estado de Conexión */}
-          <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6 mb-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+          {/* Header del Dashboard */}
+          <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6 mb-6">
+            <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Mi Turno Actual</h1>
-                <p className="text-gray-600">Monitor en tiempo real - Operador: {turno.operador}</p>
+                <h1 className="text-3xl font-bold text-gray-900">📊 Último Turno Registrado</h1>
+                <p className="text-gray-600 mt-1">
+                  Monitoreo del último registro - Última actualización: {ultimaActualizacion.toLocaleTimeString('es-ES')}
+                </p>
               </div>
-              <div className="flex flex-col gap-2 mt-4 sm:mt-0">
-                <ConnectionStatus isConfigured={true} />
-                <p className="text-sm text-gray-500">Última actualización: {ultimaActualizacion}</p>
-                <button
-                  onClick={loadDatosTurnoActual}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
+              <div className="flex space-x-3">
+                <button 
+                  onClick={cargarDatosTurnoActual}
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
                 >
                   🔄 Actualizar
                 </button>
               </div>
             </div>
+
+            {/* Alertas */}
+            {metricas.alertas.length > 0 && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {metricas.alertas.map((alerta: string, index: number) => (
+                  <div key={index} className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-3 py-2 rounded text-sm">
+                    {alerta}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Alertas */}
-          {metricas.alertas.length > 0 && (
-            <div className="bg-red-100 border border-red-400 rounded-lg p-4 mb-8">
-              <h3 className="text-red-800 font-bold mb-2">⚠️ Alertas Activas</h3>
-              <ul className="list-disc list-inside text-red-700">
-                {metricas.alertas.map((alerta, index) => (
-                  <li key={index}>{alerta}</li>
-                ))}
-              </ul>
+          {/* Métricas Principales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            
+            {/* Estado del Turno */}
+            <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Estado</p>
+                  <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mt-2 ${getEstadoColor(metricas.estado)}`}>
+                    {metricas.estado}
+                  </div>
+                </div>
+                <div className="text-4xl">🔄</div>
+              </div>
+            </div>
+
+            {/* Rendimiento */}
+            <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Rendimiento</p>
+                  <p className="text-2xl font-bold text-green-600">{metricas.rendimiento}%</p>
+                  <p className="text-xs text-gray-500">Eficiencia: {metricas.eficiencia}%</p>
+                </div>
+                <div className="text-4xl">📈</div>
+              </div>
+            </div>
+
+            {/* Temperatura */}
+            <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Temperatura Promedio</p>
+                  <p className={`text-2xl font-bold ${getTemperaturaColor(metricas.temperaturaPromedio)}`}>
+                    {metricas.temperaturaPromedio}°C
+                  </p>
+                </div>
+                <div className="text-4xl">🌡️</div>
+              </div>
+            </div>
+
+            {/* Tiempo */}
+            <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Tiempo Transcurrido</p>
+                  <p className="text-2xl font-bold text-blue-600">{metricas.tiempoTranscurrido}</p>
+                </div>
+                <div className="text-4xl">⏱️</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Información del Turno Actual */}
+          {turnoActual && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              
+              {/* Datos del Turno */}
+              <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">📋 Último Turno Registrado</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">Operador:</span>
+                    <span className="text-gray-900">{String((turnoActual as Record<string, unknown>).Operador || turnoActual.operador || 'N/A')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">Fecha Inicio:</span>
+                    <span className="text-gray-900">{formatearFecha(String((turnoActual as Record<string, unknown>)["Fecha Inicio Turno"] || turnoActual.fecha || ''))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">Fecha Fin:</span>
+                    <span className="text-gray-900">{formatearFecha(String((turnoActual as Record<string, unknown>)["Fecha Fin Turno"] || '')) || 'En proceso'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">Estado Inicial Planta:</span>
+                    <span className={`px-2 py-1 rounded text-sm ${String((turnoActual as Record<string, unknown>)["Estado Inicial Planta"]) === 'Encendida' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {String((turnoActual as Record<string, unknown>)["Estado Inicial Planta"] || 'Desconocido')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">Estado Final Planta:</span>
+                    <span className={`px-2 py-1 rounded text-sm ${String((turnoActual as Record<string, unknown>)["Estado Final Planta"]) === 'Encendida' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {String((turnoActual as Record<string, unknown>)["Estado Final Planta"] || 'En proceso')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Métricas de Producción */}
+              <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">⚗️ Consumos y Estados</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Energía Inicial</p>
+                    <p className="text-xl font-bold text-blue-600">{Number((turnoActual as Record<string, unknown>)["Consumo Energia Inicio"]) || 0} kWh</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Energía Final</p>
+                    <p className="text-xl font-bold text-green-600">{(turnoActual as Record<string, unknown>)["Consumo Energia Fin"] ? Number((turnoActual as Record<string, unknown>)["Consumo Energia Fin"]) : 'En proceso'} kWh</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Gas Inicial</p>
+                    <p className="text-xl font-bold text-orange-600">{Number((turnoActual as Record<string, unknown>)["Consumo Gas Inicial"]) || 0} m³</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Gas Final</p>
+                    <p className="text-xl font-bold text-purple-600">{(turnoActual as Record<string, unknown>)["Consumo Gas Final"] ? Number((turnoActual as Record<string, unknown>)["Consumo Gas Final"]) : 'En proceso'} m³</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Estado del Turno */}
-          <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-3xl mb-2">⏰</div>
-                <h3 className="text-lg font-semibold text-gray-900">Estado</h3>
-                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  turno.estado === 'Activo' ? 'bg-green-100 text-green-800' :
-                  turno.estado === 'Completado' ? 'bg-blue-100 text-blue-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {turno.estado}
-                </span>
-                <p className="text-gray-500 text-sm mt-1">Tiempo: {metricas.tiempoTranscurrido}</p>
-              </div>
-
-              <div className="text-center">
-                <div className="text-3xl mb-2">🌡️</div>
-                <h3 className="text-lg font-semibold text-gray-900">Temperatura</h3>
-                <p className="text-2xl font-bold text-orange-600">{metricas.temperaturaPromedio}°C</p>
-                <p className="text-gray-500 text-sm">Actual: {turno.temperatura_inicio}°C</p>
-              </div>
-
-              <div className="text-center">
-                <div className="text-3xl mb-2">⚗️</div>
-                <h3 className="text-lg font-semibold text-gray-900">Rendimiento</h3>
-                <p className="text-2xl font-bold text-green-600">{metricas.rendimiento.toFixed(1)}%</p>
-                <p className="text-gray-500 text-sm">{turno.biochar_kg}kg / {turno.biomasa_kg}kg</p>
-              </div>
-
-              <div className="text-center">
-                <div className="text-3xl mb-2">�</div>
-                <h3 className="text-lg font-semibold text-gray-900">Eficiencia</h3>
-                <p className="text-2xl font-bold text-blue-600">{metricas.eficiencia.toFixed(1)}%</p>
-                <p className="text-gray-500 text-sm">General del turno</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Métricas del Operador */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6 text-center">
-              <div className="text-4xl mb-3">⚖️</div>
-              <h3 className="text-xl font-bold text-gray-900">{metricas.totalBalancesMasa || 0}</h3>
-              <p className="text-gray-600">Balances de Masa</p>
-              <p className="text-sm text-gray-500 mt-2">Registros completados</p>
-            </div>
-
-            <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6 text-center">
-              <div className="text-4xl mb-3">🚛</div>
-              <h3 className="text-xl font-bold text-gray-900">{metricas.totalViajesBiomasa || 0}</h3>
-              <p className="text-gray-600">Viajes de Biomasa</p>
-              <p className="text-sm text-gray-500 mt-2">Transportes realizados</p>
-            </div>
-
-            <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6 text-center">
-              <div className="text-4xl mb-3">📖</div>
-              <h3 className="text-xl font-bold text-gray-900">{metricas.bitacoraEntradas || 0}</h3>
-              <p className="text-gray-600">Entradas Bitácora</p>
-              <p className="text-sm text-gray-500 mt-2">Registros recientes</p>
-            </div>
-          </div>
-
-          {/* Detalles del Turno */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            
-            {/* Información del Turno */}
-            <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">📋 Detalles del Turno</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">Fecha:</span>
-                  <span className="text-gray-900">{new Date(turno.fecha).toLocaleDateString('es-ES')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">Horario:</span>
-                  <span className="text-gray-900">{turno.turno}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-600">Operador:</span>
-                  <span className="text-gray-900 font-semibold text-blue-600">{turno.operador}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Métricas de Producción */}
-            <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">🏭 Métricas de Producción</h2>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-600">Biomasa Procesada</span>
-                    <span className="text-sm text-gray-900">{turno.biomasa_kg} kg</span>
+          {/* Alimentación de Biomasa */}
+          {turnoActual && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">🌾 Alimentación de Biomasa</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Biomasa por Minuto</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {Number((turnoActual as Record<string, unknown>)["🎙️ Alimentación Biomasa Húmeda Por Minuto (Kg)"]) || 0} kg/min
+                    </p>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div className="bg-yellow-600 h-3 rounded-full transition-all duration-500" style={{width: '75%', maxWidth: '100%'}}></div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Biomasa por Hora</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      {(Number((turnoActual as Record<string, unknown>)["🎙️ Alimentación Biomasa Húmeda Por Minuto (Kg)"]) || 0) * 60} kg/h
+                    </p>
                   </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-600">Biochar Producido</span>
-                    <span className="text-sm text-gray-900">{turno.biochar_kg} kg</span>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Hertz Tolva 2</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      {Number((turnoActual as Record<string, unknown>)["🎙️ Herzt Tolva 2"]) || 0} Hz
+                    </p>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div className="bg-green-600 h-3 rounded-full transition-all duration-500" style={{width: `${Math.min(metricas.rendimiento, 100)}%`, maxWidth: '100%'}}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-600">Eficiencia del Proceso</span>
-                    <span className="text-sm text-gray-900">{metricas.eficiencia.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div className="bg-blue-600 h-3 rounded-full transition-all duration-500" style={{width: `${Math.min(metricas.eficiencia, 100)}%`, maxWidth: '100%'}}></div>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-500">Humedad Biomasa</p>
+                    <p className="text-xl font-bold text-orange-600">
+                      {((turnoActual as Record<string, unknown>)["Porcentaje Humedad Biomasa"] as number[])?.[0] || 0}%
+                    </p>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Historial de Bitácora */}
-          {datosActuales.bitacoraHistorial && datosActuales.bitacoraHistorial.length > 0 && (
-            <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6 mb-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">� Historial de Bitácora</h2>
-              <div className="max-h-60 overflow-y-auto space-y-3">
-                {datosActuales.bitacoraHistorial.slice(0, 5).map((entrada, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-500">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-gray-800 text-sm">{entrada.fields?.descripcion || entrada.fields?.Descripcion || 'Sin descripción'}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {entrada.fields?.fecha ? new Date(entrada.fields.fecha).toLocaleDateString('es-ES') : 'Sin fecha'} - 
-                          {entrada.fields?.hora || entrada.fields?.Hora || 'Sin hora'}
-                        </p>
+              {/* Historial de Balances de Masa */}
+              <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg shadow-xl p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">⚖️ Historial Balances de Masa</h3>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {balancesMasa.length > 0 ? (
+                    balancesMasa.map((balance, index) => (
+                      <div key={balance.id || index} className="border-b border-gray-200 pb-2">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-semibold text-sm text-gray-700">
+                              Registro #{index + 1}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {balance["Fecha"] ? new Date(balance["Fecha"]).toLocaleDateString('es-ES', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'N/A'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-green-600">
+                              {balance["Peso Biochar (KG)"] || 0} kg
+                            </p>
+                            <p className="text-xs text-blue-600">
+                              R1: {balance["Temperatura Reactor (R1)"] || 0}°C
+                            </p>
+                            <p className="text-xs text-orange-600">
+                              H2: {balance["Temperatura Horno (H2)"] || 0}°C
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                        {entrada.fields?.tipo || entrada.fields?.Tipo || 'General'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {datosActuales.bitacoraHistorial.length === 0 && (
-                  <p className="text-gray-400 italic text-center py-4">No hay registros de bitácora</p>
-                )}
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center">No hay balances de masa disponibles</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
-
-          {/* Panel de Control Visual - Sin botones innecesarios */}
-          <div className="bg-white bg-opacity-95 rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">🎛️ Estado Actual del Proceso</h2>
-            
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-700 mb-2">Observaciones del Turno:</h3>
-              <div className="bg-gray-50 rounded-lg p-4 min-h-[60px]">
-                {turno.observaciones ? (
-                  <p className="text-gray-700">{turno.observaciones}</p>
-                ) : (
-                  <p className="text-gray-400 italic">No hay observaciones registradas</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-center">
-              <button
-                onClick={() => window.location.href = '/piroliapp'}
-                className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-8 py-3 rounded-lg font-semibold text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-              >
-                🔥 Ir a Control de Proceso
-              </button>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ export interface UseAirtableState {
   turnos: TurnoData[];
   personal: PersonalData[];
   procesos: ProcesoData[];
-  estadisticas: any;
+  estadisticas: Record<string, unknown>;
 }
 
 export interface UseAirtableActions {
@@ -26,7 +26,7 @@ export const useAirtable = (initialDate?: string): [UseAirtableState, UseAirtabl
     turnos: [],
     personal: [],
     procesos: [],
-    estadisticas: null,
+    estadisticas: {},
   });
 
   const clearError = useCallback(() => {
@@ -192,7 +192,7 @@ export const usePersonalByCargo = (cargo?: 'Operador' | 'Supervisor' | 'Técnico
 
 // Hook para estadísticas en tiempo real
 export const useEstadisticasTiempoReal = (refreshInterval = 30000) => {
-  const [estadisticas, setEstadisticas] = useState<any>(null);
+  const [estadisticas, setEstadisticas] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
