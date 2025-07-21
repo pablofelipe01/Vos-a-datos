@@ -35,33 +35,9 @@ export default function Home() {
             </h1>
             
             {/* Subtítulo */}
-            <p className="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed animate-fade-in-delay">
+            <p className="text-xl md:text-2xl text-gray-200 mb-16 max-w-3xl mx-auto leading-relaxed animate-fade-in-delay">
               Plataforma integral para optimización de procesos de pirólisis. Control de temperatura, gestión de biomasa y seguimiento mi turno en tiempo real.
             </p>
-
-            {/* Botones de Acción */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 animate-fade-in-delay-2">
-              <button 
-                onClick={() => window.location.href = '/piroliapp'}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-4 px-8 rounded-lg transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
-              >
-                🔥 Iniciar Proceso
-              </button>
-              
-              <button 
-                onClick={() => window.location.href = '/seguimiento_turno'}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-8 rounded-lg transform transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
-              >
-                ⏰ Mi Turno
-              </button>
-              
-              <button 
-                onClick={() => window.location.href = '/dashboard'}
-                className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-black font-semibold py-4 px-8 rounded-lg transform transition-all duration-300 hover:scale-105"
-              >
-                📊 Dashboard
-              </button>
-            </div>
 
             {/* Características destacadas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto animate-fade-in-delay-3">

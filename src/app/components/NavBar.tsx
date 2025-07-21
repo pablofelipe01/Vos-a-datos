@@ -60,12 +60,6 @@ const NavBar: React.FC = () => {
               Home
             </Link>
             <Link
-              href="/dashboard"
-              className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
-            >
-              Dashboard
-            </Link>
-            <Link
               href="/piroliapp"
               className="text-white hover:text-blue-300 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white hover:bg-opacity-10"
             >
@@ -110,12 +104,6 @@ const NavBar: React.FC = () => {
               className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
             >
               🏠 Home
-            </Link>
-            <Link
-              href="/dashboard"
-              className="block px-4 py-3 rounded-lg text-base font-medium text-white hover:bg-white hover:bg-opacity-10 transition-all duration-200"
-            >
-              📊 Dashboard
             </Link>
             <Link
               href="/piroliapp"
