@@ -45,6 +45,16 @@ export interface PersonalData {
   activo: boolean;
 }
 
+export interface EquipoPiroData {
+  id?: string;
+  ID?: string;
+  Nombre?: string;
+  Cedula?: string;
+  Cargo?: string;
+  ID_Chat?: string;
+  Estado_Operador?: 'Esperando_Audio' | 'Normal' | 'Manipular_Bache';
+}
+
 export interface ProcesoData {
   id?: string;
   lote_id: string;
@@ -779,6 +789,145 @@ class AirtableService {
         "Temperatura Ducto (G9)": 0.00
       }
     ];
+  }
+
+  // ==========================================
+  // MÉTODOS PARA VALIDACIÓN DE CÉDULAS
+  // ==========================================
+
+  async validateCedula(cedula: string): Promise<EquipoPiroData | null> {
+    if (!this.isConfigured) {
+      // En modo desarrollo sin configuración, permitir cualquier cédula
+      console.warn('⚠️ Airtable no configurado. Permitiendo login con cualquier cédula para desarrollo.');
+      return {
+        id: 'dev-user',
+        Nombre: 'Usuario Desarrollo',
+        Cedula: cedula,
+        Cargo: 'Desarrollador',
+        Estado_Operador: 'Normal'
+      };
+    }
+
+    try {
+      console.log('🔍 Validando cédula:', cedula);
+      
+      // Usar el ID de la tabla directamente desde la documentación
+      const tableId = 'tbl8jLu1r5Noqd8WB'; // Equipo Pirolisis Table ID
+      
+      // Filtrar por el campo Cedula usando filterByFormula
+      const filterFormula = `{Cedula} = '${cedula}'`;
+      const url = `${this.baseUrl}/${tableId}?filterByFormula=${encodeURIComponent(filterFormula)}`;
+      
+      console.log('🔄 Fetching from URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response from Airtable Equipo Pirolisis:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Error ${response.status}: ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Equipo Pirolisis query result:`, data);
+      
+      if (!data.records || data.records.length === 0) {
+        console.warn('⚠️ Cédula no encontrada en la tabla Equipo Pirolisis');
+        return null;
+      }
+
+      // Retornar el primer registro encontrado (debería ser único)
+      const record = data.records[0];
+      const userData: EquipoPiroData = {
+        id: record.id,
+        ID: record.fields.ID,
+        Nombre: record.fields.Nombre,
+        Cedula: record.fields.Cedula,
+        Cargo: record.fields.Cargo,
+        ID_Chat: record.fields.ID_Chat,
+        Estado_Operador: record.fields.Estado_Operador
+      };
+
+      console.log('✅ Usuario validado exitosamente:', userData);
+      return userData;
+
+    } catch (error) {
+      console.error('❌ Error al validar cédula:', error);
+      throw error;
+    }
+  }
+
+  async getEquipoPirolisis(): Promise<EquipoPiroData[]> {
+    if (!this.isConfigured) {
+      console.warn('⚠️ Airtable no configurado. Retornando datos mock de equipo pirólisis...');
+      return [
+        {
+          id: 'dev-1',
+          Nombre: 'Usuario Desarrollo 1',
+          Cedula: '1234567',
+          Cargo: 'Desarrollador',
+          Estado_Operador: 'Normal'
+        },
+        {
+          id: 'dev-2',
+          Nombre: 'Usuario Desarrollo 2',
+          Cedula: '7654321',
+          Cargo: 'Operador de planta',
+          Estado_Operador: 'Normal'
+        }
+      ];
+    }
+
+    try {
+      console.log('🔄 Obteniendo equipo de pirólisis desde Airtable...');
+      
+      const tableId = 'tbl8jLu1r5Noqd8WB'; // Equipo Pirolisis Table ID
+      const url = `${this.baseUrl}/${tableId}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error response from Airtable Equipo Pirolisis:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
+        throw new Error(`Error ${response.status}: ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ ${data.records?.length || 0} registros de equipo pirólisis obtenidos de Airtable`);
+      
+      if (!data.records || data.records.length === 0) {
+        console.warn('⚠️ No se encontraron registros en la tabla Equipo Pirolisis');
+        return [];
+      }
+
+      return data.records.map((record: { id: string; fields: Record<string, unknown> }) => ({
+        id: record.id,
+        ID: record.fields.ID,
+        Nombre: record.fields.Nombre,
+        Cedula: record.fields.Cedula,
+        Cargo: record.fields.Cargo,
+        ID_Chat: record.fields.ID_Chat,
+        Estado_Operador: record.fields.Estado_Operador
+      }));
+
+    } catch (error) {
+      console.error('❌ Error al obtener equipo de pirólisis:', error);
+      throw error;
+    }
   }
 }
 
